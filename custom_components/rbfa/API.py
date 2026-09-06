@@ -4,7 +4,7 @@ import json
 import requests
 from zoneinfo import ZoneInfo
 from homeassistant.util import dt as dt_util
-from .const import DOMAIN, VARIABLES, HASHES, REQUIRED, TZ
+from .const import DOMAIN, VARIABLES, HASHES, REQUIRED, TZ, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,11 +15,19 @@ class TeamApp(object):
         self.hass = hass
         self.team = my_api.data['team']
 
+        # Utilise la langue configurée dans Home Assistant quand l'API RBFA
+        # la supporte, sinon retombe sur le néerlandais. Recalculé à chaque
+        # (re)démarrage : un changement de langue HA est donc pris en compte
+        # automatiquement, sans jamais toucher entity_id/unique_id.
+        hass_language = getattr(hass.config, 'language', None)
+        self.language = hass_language if hass_language in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+        _LOGGER.debug('RBFA API language: %r (HA language: %r)', self.language, hass_language)
+
     def __get_url(self, operation, value):
         try:
             main_url = 'https://datalake-prod2018.rbfa.be/graphql'
             payload = {"operationName": operation,
-            "variables": {VARIABLES[operation]: value, "language": "nl"},
+            "variables": {VARIABLES[operation]: value, "language": self.language},
             "extensions": {"persistedQuery": {"version":1, "sha256Hash": HASHES[operation]}}}
             headers = {'content-type': 'application/json'}
 
@@ -31,7 +39,8 @@ class TeamApp(object):
 
             rj = response.json()
             if rj.get('data') is None:
-                _LOGGER.debug("Error for operation {}: {}".format(operation, rj['errors'][0]['message']))
+                error_message = rj.get('errors', [{}])[0].get('message', 'unknown error')
+                _LOGGER.debug("Error for operation {}: {}".format(operation, error_message))
 
             elif rj['data'][REQUIRED[operation]] == None:
                 _LOGGER.debug('no results')
@@ -106,25 +115,28 @@ class TeamApp(object):
                 previous = None
 
                 self.collections = []
-                referee = None
 
                 for item in r['data']['teamCalendar']:
+                    # Réinitialisation par match : sans ça, un match sans
+                    # arbitre renseigné (ou dont le détail échoue) réutilisait
+                    # silencieusement l'arbitre du match précédent.
+                    referee = None
+                    location = None
+
                     self.match = item['id']
                     r = await self.hass.async_add_executor_job(self.__get_match)
                     if r != None:
-                        match = r['data']['matchDetail']['location']
+                        match_location = r['data']['matchDetail']['location']
                         location='{}\n{} {}\nBelgium'.format(
-                            match['address'],
-                            match['postalCode'],
-                            match['city'],
+                            match_location['address'],
+                            match_location['postalCode'],
+                            match_location['city'],
                         )
                         if self.show_referee:
                             officials = r['data']['matchDetail']['officials']
                             for x in officials:
                                 if x['function'] == 'referee':
                                     referee = f"{x['firstName']} {x['lastName']}"
-                    else:
-                        location = None
 
                     naive_dt  = datetime.strptime(item['startTime'], '%Y-%m-%dT%H:%M:%S')
                     starttime = naive_dt.replace(tzinfo = ZoneInfo(TZ))

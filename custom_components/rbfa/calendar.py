@@ -40,33 +40,41 @@ class TeamCalendar(RbfaEntity, CalendarEntity):
         coordinator,
         config,
     ) -> None:
-        super().__init__(coordinator)
         """Initialize the RBFA Team entity."""
-        self.TeamData = coordinator
+        super().__init__(coordinator)
         self.config = config
         team = config.data['team']
         _LOGGER.debug('team: %r', team)
-        self._attr_name      = f"{DOMAIN} {team}"
         self._attr_unique_id = f"{DOMAIN}_calendar_{team}"
+        # Garde l'entity_id stable quelle que soit la langue de Home
+        # Assistant (même logique que dans sensor.py).
+        self._attr_suggested_object_id = f"{team}"
 
         self._event = None
+
+    @property
+    def name(self) -> str:
+        """Return the display name of the calendar.
+
+        Calculé comme une vraie property (et non plus en effet de bord
+        dans `event` comme avant) afin d'être disponible dès l'ajout de
+        l'entité, sans dépendre du fait que `event` ait déjà été lu.
+        """
+        if 'alt_name' in self.config.options:
+            return self.config.options['alt_name']
+        if 'alt_name' in self.config.data:
+            return self.config.data['alt_name']
+        if self.coordinator.teamdata:
+            return f"{self.coordinator.teamdata['clubName']} | {self.coordinator.teamdata['name']}"
+        return self.config.data['team']
 
     @property
     def event(self) -> Optional[CalendarEvent]:
         """Return the next upcoming event."""
 
-        if 'alt_name' in self.config.options:
-            self._attr_name = self.config.options['alt_name']
-        elif 'alt_name' in self.config.data:
-            self._attr_name = self.config.data['alt_name']
-        else:
-            self._attr_name = f"{self.TeamData.teamdata['clubName']} | {self.TeamData.teamdata['name']}"
-
-        upcoming = self.TeamData.data['upcoming']
-        lastmatch = self.TeamData.data['lastmatch']
+        upcoming = self.coordinator.data['upcoming']
 
         if upcoming != None:
-#             _LOGGER.debug('upcoming teamname: %r', upcoming['teamname'])
             return CalendarEvent(
                 uid         = upcoming['matchid'],
                 summary     = upcoming['hometeam'] + ' - ' + upcoming['awayteam'],
@@ -85,8 +93,8 @@ class TeamCalendar(RbfaEntity, CalendarEntity):
         """Return calendar events"""
         events: List[CalendarEvent] = []
 
-        _LOGGER.debug("count: %r", len(self.TeamData.collections))
-        for team_items in self.TeamData.collections:
+        _LOGGER.debug("count: %r", len(self.coordinator.collections))
+        for team_items in self.coordinator.collections:
 
             if start_date.date() <= team_items['starttime'].date() <= end_date.date():
 

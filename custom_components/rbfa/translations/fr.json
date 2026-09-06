@@ -6,12 +6,15 @@
             "description":"Royal Belgian Football Association",
             "data":{
                "team":"Identité de l'équipe",
-               "duration":"Duur van de wedstrijd inclusief rust"
+               "alt_name":"Nom alternatif",
+               "duration":"Durée du match avec la mi-temps incluse",
+               "show_ranking":"Afficher les résultats et le classement",
+               "show_referee":"Afficher l'arbitre"
             }
          }
       },
       "abort":{
-         "already_configured":"Team is al toegevoegd"
+         "already_configured":"Equipe déjà ajoutée"
       }
    },
    "options":{
@@ -20,7 +23,10 @@
             "title":"RBFA",
             "description":"Royal Belgian Football Association",
             "data":{
-               "duration":"Duur van de wedstrijd inclusief rust"
+               "alt_name":"Nom alternatif",
+               "duration":"Durée du match avec la mi-temps incluse",
+               "show_ranking":"Afficher les résultats et le classement",
+               "show_referee":"Afficher l'arbitre"
             }
          }
       }
@@ -28,7 +34,7 @@
    "entity":{
       "sensor":{
          "hometeam":{
-            "name":"Thuis",
+            "name":"Domicile",
             "state_attributes":{
                "team":{
                   "name":"Équipe"
@@ -61,7 +67,7 @@
             }
          },
          "awayteam":{
-            "name":"Uit",
+            "name":"Extérieur",
             "state_attributes":{
                "team":{
                   "name":"Équipe"
@@ -73,7 +79,7 @@
                   "name":"Pénalités"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Identité de l'équipe"
@@ -87,10 +93,10 @@
             "name":"Site",
             "state_attributes":{
                "team":{
-                  "name":"Elftal"
+                  "name":"Equipe"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Team ID"
@@ -101,10 +107,10 @@
             "name":"Arbitre",
             "state_attributes":{
                "team":{
-                  "name":"Elftal"
+                  "name":"Equipe"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Team ID"
@@ -112,13 +118,13 @@
             }
          },
          "starttime":{
-            "name":"Start",
+            "name":"Début",
             "state_attributes":{
                "team":{
-                  "name":"Elftal"
+                  "name":"Equipe"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Team ID"
@@ -126,13 +132,13 @@
             }
          },
          "endtime":{
-            "name":"Eind",
+            "name":"Fin",
             "state_attributes":{
                "team":{
-                  "name":"Elftal"
+                  "name":"Equipe"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Team ID"
@@ -140,13 +146,13 @@
             }
          },
          "matchid":{
-            "name":"Wedstrijd ID",
+            "name":"Match ID",
             "state_attributes":{
                "team":{
-                  "name":"Elftal"
+                  "name":"Equipe"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Team ID"
@@ -154,13 +160,13 @@
             }
          },
          "series":{
-            "name":"Reeks",
+            "name":"Compétition",
             "state_attributes":{
                "team":{
-                  "name":"Elftal"
+                  "name":"Equipe"
                },
                "date":{
-                  "name":"Datum"
+                  "name":"Date"
                },
                "id":{
                   "name":"Team ID"

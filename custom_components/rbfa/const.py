@@ -12,6 +12,15 @@ VERSION = manifest_data.get("version")
 
 TZ = 'Europe/Brussels'
 
+# Langues supportées par l'API GraphQL de la RBFA. La langue configurée dans
+# Home Assistant (hass.config.language) est utilisée automatiquement quand
+# elle fait partie de cette liste ; sinon on retombe sur le néerlandais.
+# Ceci ne change QUE le contenu texte renvoyé par l'API (nom de série,
+# arbitre, etc.) - ça n'affecte jamais entity_id/unique_id, qui restent donc
+# identiques quelle que soit la langue de Home Assistant.
+SUPPORTED_LANGUAGES = ("nl", "fr", "en")
+DEFAULT_LANGUAGE = "nl"
+
 VARIABLES = {
     'GetTeam':          'teamId',
     'GetTeamCalendar':  'teamId',

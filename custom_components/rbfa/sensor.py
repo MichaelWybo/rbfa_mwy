@@ -69,7 +69,7 @@ async def async_setup_entry(
 
     if 'show_referee' in entry.options:
         show_referee = entry.options['show_referee']
-    elif 'alt_name' in entry.data:
+    elif 'show_referee' in entry.data:
         show_referee = entry.data['show_referee']
     else:
         show_referee = True
@@ -104,7 +104,7 @@ class RbfaSensor(RbfaEntity, SensorEntity):
     def __init__(
         self,
         coordinator: MyCoordinator,
-        description: RbfaSensorEntityDescription,
+        description: SensorEntityDescription,
         entry,
         collection,
     ) -> None:
@@ -113,6 +113,12 @@ class RbfaSensor(RbfaEntity, SensorEntity):
         self.collection = collection
         self.team = entry.data.get('team')
         self._attr_unique_id = f"{DOMAIN}_{collection}_{description.key}_{self.team}"
+        # Garde l'entity_id stable quelle que soit la langue de Home
+        # Assistant : sans ceci, l'entity_id est dérivé du nom traduit
+        # (ex. "sensor.thuis" en NL vs "sensor.home_team" en EN), ce qui
+        # change/duplique silencieusement les entités si l'utilisateur
+        # change la langue de HA.
+        self._attr_suggested_object_id = f"{self.team}_{collection}_{description.key}"
 
     @property
     def native_value(self):

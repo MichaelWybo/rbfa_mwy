@@ -5,10 +5,10 @@ from .coordinator import MyCoordinator
 
 
 class RbfaEntity(CoordinatorEntity[MyCoordinator]):
-    """Defines an Elgato entity."""
+    """Base class for RBFA entities."""
 
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: MyCoordinator) -> None:
-        """Initialize an Elgato entity."""
+        """Initialize a RBFA entity."""
         super().__init__(coordinator=coordinator)

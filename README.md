@@ -14,6 +14,10 @@ Configuration
 
 The team number is the number after 'ploeg': https://www.rbfa.be/nl/club/2438/ploeg/300872/overzicht
 
+Language
+-
+The integration automatically fetches match data (series name, referee, ...) in the language configured in Home Assistant (French, Dutch or English). Any other Home Assistant language falls back to Dutch. This only affects the *content* of the sensors, never their entity_id: entities are identical no matter which language Home Assistant runs in.
+
 Example card
 -
 ![Example](https://github.com/rgerbranda/rbfa/blob/main/images/example.png)
@@ -24,34 +28,36 @@ Match card
 
 The match card is based on the [Markdown card](https://www.home-assistant.io/dashboards/markdown/).
 
-Add a Markdown card with the following content. Note: replace the names of the sensors by the ones in your configuration.
+Entity IDs are now built from your team ID and are the same regardless of the Home Assistant language, following the pattern `sensor.<team>_<upcoming|lastmatch>_<key>` (e.g. `sensor.300872_upcoming_hometeam`) and `calendar.<team>` for the calendar (e.g. `calendar.300872`). Check **Developer tools > States** to find yours, then replace the sensor names below.
+
+Add a Markdown card with the following content. Note: replace `300872` by your own team ID.
 
 ```
 <table width="100%">
 <tr>
-<th colspan=2>{{states('sensor.reeks')}}</th>
+<th colspan=2>{{states('sensor.300872_upcoming_series')}}</th>
 </tr>
 <tr>
 <th colspan=2>
-<a href="https://www.rbfa.be/nl/wedstrijd/{{ states('sensor.wedstrijd_id') }}">{{as_timestamp(states('sensor.start'))|timestamp_custom('%d-%m-%y om %H:%M uur')}}</a></th>
+<a href="https://www.rbfa.be/nl/wedstrijd/{{ states('sensor.300872_upcoming_matchid') }}">{{as_timestamp(states('sensor.300872_upcoming_starttime'))|timestamp_custom('%d-%m-%y om %H:%M uur')}}</a></th>
 </tr>
 <tr>
-<td align="center"><img src="{{state_attr('sensor.thuis','entity_picture')}}" width="64"></td>
-<td align="center"><img src="{{state_attr('sensor.uit','entity_picture')}}" width="64"></td>
+<td align="center"><img src="{{state_attr('sensor.300872_upcoming_hometeam','entity_picture')}}" width="64"></td>
+<td align="center"><img src="{{state_attr('sensor.300872_upcoming_awayteam','entity_picture')}}" width="64"></td>
 </tr>
 <tr>
-<td align="center">{{states('sensor.thuis')}}</td>
-<td align="center">{{states('sensor.uit')}}</td>
+<td align="center">{{states('sensor.300872_upcoming_hometeam')}}</td>
+<td align="center">{{states('sensor.300872_upcoming_awayteam')}}</td>
 </tr>
 <tr>
-<td align="center">Positie: {{state_attr('sensor.thuis','position')}}</td>
-<td align="center">Positie: {{state_attr('sensor.uit', 'position')}}</td>
+<td align="center">Positie: {{state_attr('sensor.300872_upcoming_hometeam','position')}}</td>
+<td align="center">Positie: {{state_attr('sensor.300872_upcoming_awayteam', 'position')}}</td>
 </tr>
 <tr>
-<td align="center" colspan="2">{{states('sensor.locatie') | replace("\n",", ")}}</td>
+<td align="center" colspan="2">{{states('sensor.300872_upcoming_location') | replace("\n",", ")}}</td>
 </tr>
 <tr>
-<td align="center" colspan="2">Scheidsrechter: {{states('sensor.scheidsrechter') }}</td>
+<td align="center" colspan="2">Scheidsrechter: {{states('sensor.300872_upcoming_referee') }}</td>
 </table>
 ```
 
@@ -63,16 +69,16 @@ Ranking card
 type: markdown
 title: Ranking
 content: >-
-  {% set sensor = "sensor.result_279669" %}
+  {% set sensor = "sensor.300872_upcoming_series" %}
 
   {{state_attr(sensor, "Series") }}
 
   -
 
-  {% if state_attr(sensor, "Ranking") != None %}
-  {% for item in state_attr(sensor, "Ranking") %}
+  {% if state_attr(sensor, "ranking") != None %}
+  {% for item in state_attr(sensor, "ranking") %}
 
-  {{ item.position }}. {% if item.id == state_attr(sensor, "TeamID") %}**{{item.team}}**
+  {{ item.position }}. {% if item.id == state_attr(sensor, "baseid") %}**{{item.team}}**
   {% else %}{{item.team}}
   {% endif %}
   {% endfor %} 
