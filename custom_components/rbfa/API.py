@@ -207,7 +207,23 @@ class TeamApp(object):
         r = await self.hass.async_add_executor_job(self.__get_ranking)
         if r != None:
             for rank in r['data']['seriesRankings']['rankings'][0]['teams']:
-                rankteam = {'position': rank['position'], 'team': rank['name'], 'id': rank['teamId']}
+                rankteam = {
+                    'position': rank['position'],
+                    'team': rank['name'],
+                    'id': rank['teamId'],
+                    'clubid': rank.get('clubId'),
+                    'clubregistrationnumber': rank.get('clubRegistrationNumber'),
+                    'logo': rank.get('logo'),
+                    'points': rank.get('points'),
+                    'played': rank.get('matchesPlayed'),
+                    'won': rank.get('matchesWon'),
+                    'drawn': rank.get('matchesDrawn'),
+                    'lost': rank.get('matchesLost'),
+                    'goalsfor': rank.get('goalsFor'),
+                    'goalsagainst': rank.get('goalsAgainst'),
+                    'goaldifference': rank.get('goalDifference'),
+                    'fairplaypercentage': rank.get('fairplayPercentage'),
+                }
                 self.matchdata[tag]['ranking'].append(rankteam)
                 if rank['teamId'] == self.matchdata[tag]['hometeamid']:
                     self.matchdata[tag]['hometeamposition'] = rank['position']
