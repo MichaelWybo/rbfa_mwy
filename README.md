@@ -1,3 +1,6 @@
+TEST CODE MODIF FROM [@rgerbranda](https://github.com/rgerbranda/rbfa/)
+
+
 Add the calendar of your soccer team to Home Assistant. The data is gathered from the Royal Belgian Football Association ([RBFA](https://www.rbfa.be/)) website in cooporation with Association Clubs Francophones de Football ([ACFF](https://www.acff.be/)) and [Voetbal Vlaanderen](https://www.voetbalvlaanderen.be/).
 
 [![Hacs validation](https://github.com/rgerbranda/rbfa/actions/workflows/validate.yaml/badge.svg)](https://github.com/rgerbranda/rbfa/actions/workflows/validate.yaml)
