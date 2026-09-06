@@ -6,15 +6,12 @@
             "description":"Royal Belgian Football Association",
             "data":{
                "team":"Identité de l'équipe",
-               "alt_name":"Nom alternatif",
-               "duration":"Durée du match avec la mi-temps incluse",
-               "show_ranking":"Afficher les résultats et le classement",
-               "show_referee":"Afficher l'arbitre"
+               "duration":"Durée du match avec la mi-temps incluse"
             }
          }
       },
       "abort":{
-         "already_configured":"Equipe déjà ajoutée"
+         "already_configured":"Equipe déjà) ajoutée"
       }
    },
    "options":{
@@ -23,10 +20,7 @@
             "title":"RBFA",
             "description":"Royal Belgian Football Association",
             "data":{
-               "alt_name":"Nom alternatif",
-               "duration":"Durée du match avec la mi-temps incluse",
-               "show_ranking":"Afficher les résultats et le classement",
-               "show_referee":"Afficher l'arbitre"
+               "duration":"Durée du match avec la mi-temps incluse"
             }
          }
       }
