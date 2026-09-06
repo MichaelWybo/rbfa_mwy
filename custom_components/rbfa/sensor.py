@@ -108,10 +108,9 @@ class RbfaSensor(RbfaEntity, SensorEntity):
         entry,
         collection,
     ) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, entry)
         self.entity_description = description
         self.collection = collection
-        self.team = entry.data.get('team')
         self._attr_unique_id = f"{DOMAIN}_{collection}_{description.key}_{self.team}"
         # Garde l'entity_id stable quelle que soit la langue de Home
         # Assistant : sans ceci, l'entity_id est dérivé du nom traduit
@@ -123,7 +122,7 @@ class RbfaSensor(RbfaEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data[self.collection]
-        if data != None:
+        if data is not None:
             return data[self.entity_description.key]
 
     @property
@@ -131,7 +130,7 @@ class RbfaSensor(RbfaEntity, SensorEntity):
         col = self.collection
         data = self.coordinator.data[col]
 
-        if data != None:
+        if data is not None:
             key = self.entity_description.key
 
             if key in ['hometeam', 'awayteam']:
@@ -154,7 +153,7 @@ class RbfaSensor(RbfaEntity, SensorEntity):
             'tag': col,
         }
 
-        if data != None:
+        if data is not None:
             key = self.entity_description.key
 
             if key in ['hometeam', 'awayteam']:
@@ -162,7 +161,7 @@ class RbfaSensor(RbfaEntity, SensorEntity):
 
                 for t in results:
                     result = data[key + t]
-                    if result != None:
+                    if result is not None:
                         attributes[t] = result
 
             if key == 'series' and data['ranking']:

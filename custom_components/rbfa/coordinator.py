@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
-from .API import TeamApp
+from .API import TeamApp, RbfaUpdateError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +30,13 @@ class MyCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from the RBFA service."""
         _LOGGER.debug('fetch data coordinator')
-        await self.collector.update(self.api)
+        try:
+            await self.collector.update(self.api)
+        except RbfaUpdateError as exc:
+            # Erreur réelle (réseau, HTTP, GraphQL) : on le signale
+            # proprement au coordinator, qui marquera les entités
+            # "unavailable" sans perdre les dernières données connues.
+            raise UpdateFailed(str(exc)) from exc
         return self.collector.matchdata
 
     @property

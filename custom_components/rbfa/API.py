@@ -8,6 +8,22 @@ from .const import DOMAIN, VARIABLES, HASHES, REQUIRED, TZ, SUPPORTED_LANGUAGES,
 
 _LOGGER = logging.getLogger(__name__)
 
+# Un match terminé depuis plus longtemps que ceci ne verra plus jamais son
+# lieu ou son arbitre changer : on peut donc se fier au cache et arrêter de
+# le re-télécharger à chaque cycle du coordinator.
+MATCH_DETAIL_CACHE_AGE = timedelta(hours=3)
+
+REQUEST_TIMEOUT = 15  # seconds
+
+
+class RbfaUpdateError(Exception):
+    """Raised when a required RBFA API call genuinely fails.
+
+    This is only raised for real failures (network error, HTTP error,
+    malformed/erroring GraphQL response) - never for a legitimate "no data"
+    response (e.g. no matches scheduled), which is a normal state.
+    """
+
 
 class TeamApp(object):
 
@@ -23,33 +39,46 @@ class TeamApp(object):
         self.language = hass_language if hass_language in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
         _LOGGER.debug('RBFA API language: %r (HA language: %r)', self.language, hass_language)
 
+        # Valeurs par défaut pour éviter tout AttributeError si le tout
+        # premier appel à update() échoue avant d'avoir pu les définir.
+        self.teamdata = {}
+        self.collections = []
+        self.matchdata = {'upcoming': None, 'lastmatch': None}
+
+        # Cache des détails (lieu + arbitre) des matchs déjà joués, par id
+        # de match : {'location': ..., 'referee': ...}
+        self._match_detail_cache = {}
+
     def __get_url(self, operation, value):
+        main_url = 'https://datalake-prod2018.rbfa.be/graphql'
+        payload = {"operationName": operation,
+        "variables": {VARIABLES[operation]: value, "language": self.language},
+        "extensions": {"persistedQuery": {"version":1, "sha256Hash": HASHES[operation]}}}
+        headers = {'content-type': 'application/json'}
+
         try:
-            main_url = 'https://datalake-prod2018.rbfa.be/graphql'
-            payload = {"operationName": operation,
-            "variables": {VARIABLES[operation]: value, "language": self.language},
-            "extensions": {"persistedQuery": {"version":1, "sha256Hash": HASHES[operation]}}}
-            headers = {'content-type': 'application/json'}
-
-            response = self.s.post(main_url, data=json.dumps(payload), headers=headers)
-
-            if response.status_code != 200:
-                _LOGGER.debug('Invalid response from server for collection data')
-                return
-
-            rj = response.json()
-            if rj.get('data') is None:
-                error_message = rj.get('errors', [{}])[0].get('message', 'unknown error')
-                _LOGGER.debug("Error for operation {}: {}".format(operation, error_message))
-
-            elif rj['data'][REQUIRED[operation]] == None:
-                _LOGGER.debug('no results')
-
-            else:
-                return rj
-
+            response = self.s.post(main_url, data=json.dumps(payload), headers=headers, timeout=REQUEST_TIMEOUT)
         except requests.exceptions.RequestException as exc:
-            _LOGGER.error('Error occurred while fetching data: %r', exc)
+            _LOGGER.error('Error occurred while fetching data for %s: %r', operation, exc)
+            raise RbfaUpdateError(f"Network error calling {operation}: {exc}") from exc
+
+        if response.status_code != 200:
+            _LOGGER.debug('Invalid response from server for collection data')
+            raise RbfaUpdateError(f"RBFA API returned HTTP {response.status_code} for {operation}")
+
+        rj = response.json()
+        if rj.get('data') is None:
+            error_message = rj.get('errors', [{}])[0].get('message', 'unknown error')
+            _LOGGER.debug("Error for operation {}: {}".format(operation, error_message))
+            raise RbfaUpdateError(f"RBFA API error for {operation}: {error_message}")
+
+        if rj['data'][REQUIRED[operation]] is None:
+            # Réponse valide mais vide (ex. aucun match programmé) : ce
+            # n'est pas une erreur, juste un résultat vide.
+            _LOGGER.debug('no results for %s', operation)
+            return None
+
+        return rj
 
     def __get_team(self):
         response = self.__get_url('GetTeam', self.team)
@@ -67,6 +96,42 @@ class TeamApp(object):
         response = self.__get_url('GetSeriesRankings', self.series)
         return response
 
+    async def __get_match_detail(self, match_id, starttime, endtime, now):
+        """Return {'location': ..., 'referee': ...} for a match.
+
+        Uses a cache for matches that ended a while ago, since their
+        location/referee never change afterwards. Falls back to the cached
+        value (if any) when a fresh fetch fails, so a transient network
+        error on one old match doesn't wipe previously known data.
+        """
+        cached = self._match_detail_cache.get(match_id)
+        if cached is not None and endtime < now - MATCH_DETAIL_CACHE_AGE:
+            return cached
+
+        self.match = match_id
+        try:
+            r = await self.hass.async_add_executor_job(self.__get_match)
+        except RbfaUpdateError as exc:
+            _LOGGER.warning('Could not fetch match detail for %s: %s', match_id, exc)
+            return cached or {'location': None, 'referee': None}
+
+        location = None
+        referee = None
+        if r is not None:
+            match_location = r['data']['matchDetail']['location']
+            location = '{}\n{} {}\nBelgium'.format(
+                match_location['address'],
+                match_location['postalCode'],
+                match_location['city'],
+            )
+            officials = r['data']['matchDetail']['officials']
+            for x in officials:
+                if x['function'] == 'referee':
+                    referee = f"{x['firstName']} {x['lastName']}"
+
+        detail = {'location': location, 'referee': referee}
+        self._match_detail_cache[match_id] = detail
+        return detail
 
     async def update(self, my_api):
         with requests.Session() as self.s:
@@ -105,42 +170,36 @@ class TeamApp(object):
 
             now = dt_util.utcnow()
 
+            # Echec critique : sans les infos de l'équipe, il n'y a rien à
+            # afficher de fiable -> on laisse l'exception remonter pour que
+            # le coordinator marque les entités "unavailable".
             r = await self.hass.async_add_executor_job(self.__get_team)
-            if r != None:
+            if r is not None:
                 self.teamdata = r['data']['team']
 
+            # Echec critique également : sans le calendrier, aucune donnée
+            # de match n'est disponible cette fois-ci.
             r = await self.hass.async_add_executor_job(self.__get_data)
-            if r != None:
+            if r is not None:
                 upcoming = False
                 previous = None
 
                 self.collections = []
 
                 for item in r['data']['teamCalendar']:
-                    # Réinitialisation par match : sans ça, un match sans
-                    # arbitre renseigné (ou dont le détail échoue) réutilisait
-                    # silencieusement l'arbitre du match précédent.
-                    referee = None
-                    location = None
-
-                    self.match = item['id']
-                    r = await self.hass.async_add_executor_job(self.__get_match)
-                    if r != None:
-                        match_location = r['data']['matchDetail']['location']
-                        location='{}\n{} {}\nBelgium'.format(
-                            match_location['address'],
-                            match_location['postalCode'],
-                            match_location['city'],
-                        )
-                        if self.show_referee:
-                            officials = r['data']['matchDetail']['officials']
-                            for x in officials:
-                                if x['function'] == 'referee':
-                                    referee = f"{x['firstName']} {x['lastName']}"
+                    match_id = item['id']
 
                     naive_dt  = datetime.strptime(item['startTime'], '%Y-%m-%dT%H:%M:%S')
                     starttime = naive_dt.replace(tzinfo = ZoneInfo(TZ))
                     endtime = starttime + timedelta(minutes=self.duration)
+
+                    detail = await self.__get_match_detail(match_id, starttime, endtime, now)
+                    location = detail['location']
+                    # Le cache garde toujours l'arbitre s'il a été trouvé un
+                    # jour, indépendamment de l'option show_referee : on ne
+                    # l'expose ici que si l'option est active, pour ne pas
+                    # perdre l'info si l'utilisateur la réactive plus tard.
+                    referee = detail['referee'] if self.show_referee else None
 
                     matchdata = {
                         'matchid': item['id'],
@@ -176,7 +235,7 @@ class TeamApp(object):
                         }
                         if self.show_ranking:
                             await self.get_ranking('upcoming')
-                            if previous != None:
+                            if previous is not None:
                                 await self.get_ranking('lastmatch')
 
                     summary = item['homeTeam']['name'] + ' - ' + item['awayTeam']['name']
@@ -184,9 +243,9 @@ class TeamApp(object):
 
                     if self.show_ranking:
                         result = 'No match score'
-                        if item['outcome']['homeTeamGoals'] != None:
+                        if item['outcome']['homeTeamGoals'] is not None:
                             result = 'Goals: ' + str(item['outcome']['homeTeamGoals']) + ' - ' + str(item['outcome']['awayTeamGoals'])
-                        if item['outcome']['homeTeamPenaltiesScored'] != None:
+                        if item['outcome']['homeTeamPenaltiesScored'] is not None:
                             result += '; Penalties: ' + str(item['outcome']['homeTeamPenaltiesScored']) + ' - '
                             result += str(item['outcome']['awayTeamPenaltiesScored'])
                         description += "; " + result
@@ -212,12 +271,19 @@ class TeamApp(object):
                     if self.show_ranking:
                         await self.get_ranking('lastmatch')
 
-    async def get_ranking (self, tag):
+    async def get_ranking(self, tag):
         _LOGGER.debug('show ranking')
 
         self.series = self.matchdata[tag]['seriesid']
-        r = await self.hass.async_add_executor_job(self.__get_ranking)
-        if r != None:
+        try:
+            r = await self.hass.async_add_executor_job(self.__get_ranking)
+        except RbfaUpdateError as exc:
+            # Le classement est une info secondaire : on ne fait pas
+            # échouer tout le cycle de mise à jour pour ça.
+            _LOGGER.warning('Could not fetch ranking for series %s: %s', self.series, exc)
+            return
+
+        if r is not None:
             for rank in r['data']['seriesRankings']['rankings'][0]['teams']:
                 rankteam = {
                     'position': rank['position'],

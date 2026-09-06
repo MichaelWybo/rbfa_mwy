@@ -34,39 +34,25 @@ class TeamCalendar(RbfaEntity, CalendarEntity):
     """Defines a RBFA Team Calendar."""
 
     _attr_icon = "mdi:soccer"
+    # Cette entité est l'entité "principale" de l'appareil équipe : ne pas
+    # définir de nom propre fait que Home Assistant affiche directement le
+    # nom de l'appareil (ex. "Club A | U15"), sans le dupliquer.
+    _attr_name = None
 
     def __init__(
         self,
         coordinator,
-        config,
+        entry,
     ) -> None:
         """Initialize the RBFA Team entity."""
-        super().__init__(coordinator)
-        self.config = config
-        team = config.data['team']
-        _LOGGER.debug('team: %r', team)
-        self._attr_unique_id = f"{DOMAIN}_calendar_{team}"
+        super().__init__(coordinator, entry)
+        _LOGGER.debug('team: %r', self.team)
+        self._attr_unique_id = f"{DOMAIN}_calendar_{self.team}"
         # Garde l'entity_id stable quelle que soit la langue de Home
         # Assistant (même logique que dans sensor.py).
-        self._attr_suggested_object_id = f"{team}"
+        self._attr_suggested_object_id = f"{self.team}"
 
         self._event = None
-
-    @property
-    def name(self) -> str:
-        """Return the display name of the calendar.
-
-        Calculé comme une vraie property (et non plus en effet de bord
-        dans `event` comme avant) afin d'être disponible dès l'ajout de
-        l'entité, sans dépendre du fait que `event` ait déjà été lu.
-        """
-        if 'alt_name' in self.config.options:
-            return self.config.options['alt_name']
-        if 'alt_name' in self.config.data:
-            return self.config.data['alt_name']
-        if self.coordinator.teamdata:
-            return f"{self.coordinator.teamdata['clubName']} | {self.coordinator.teamdata['name']}"
-        return self.config.data['team']
 
     @property
     def event(self) -> Optional[CalendarEvent]:
@@ -74,7 +60,7 @@ class TeamCalendar(RbfaEntity, CalendarEntity):
 
         upcoming = self.coordinator.data['upcoming']
 
-        if upcoming != None:
+        if upcoming is not None:
             return CalendarEvent(
                 uid         = upcoming['matchid'],
                 summary     = upcoming['hometeam'] + ' - ' + upcoming['awayteam'],
