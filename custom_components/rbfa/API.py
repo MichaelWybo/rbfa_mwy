@@ -49,10 +49,10 @@ class TeamApp(object):
         # de match : {'location': ..., 'referee': ...}
         self._match_detail_cache = {}
 
-    def __get_url(self, operation, value):
+    def __get_url(self, operation, value, language=None):
         main_url = 'https://datalake-prod2018.rbfa.be/graphql'
         payload = {"operationName": operation,
-        "variables": {VARIABLES[operation]: value, "language": self.language},
+        "variables": {VARIABLES[operation]: value, "language": language or self.language},
         "extensions": {"persistedQuery": {"version":1, "sha256Hash": HASHES[operation]}}}
         headers = {'content-type': 'application/json'}
 
@@ -81,7 +81,13 @@ class TeamApp(object):
         return rj
 
     def __get_team(self):
-        response = self.__get_url('GetTeam', self.team)
+        # Le nom du club/équipe renvoyé ici n'est utilisé que pour nommer
+        # l'appareil (voir entity.py::_team_display_name) : on le récupère
+        # toujours dans la même langue fixe (DEFAULT_LANGUAGE), pour que ce
+        # nom ne change jamais selon la langue configurée dans Home
+        # Assistant. Le contenu des matchs (série, arbitre, ...) continue,
+        # lui, de suivre self.language.
+        response = self.__get_url('GetTeam', self.team, language=DEFAULT_LANGUAGE)
         return response
 
     def __get_data(self):

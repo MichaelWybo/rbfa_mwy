@@ -18,43 +18,48 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
+# Les "name" ci-dessous sont volontairement des chaînes fixes (et non des
+# translation_key) : le nom affiché de chaque entité doit rester identique
+# quelle que soit la langue configurée dans Home Assistant. Seul le
+# *contenu* des sensors (valeur de l'état, ex. le nom de la série ou de
+# l'arbitre) suit encore la langue de HA - voir API.py / self.language.
 SENSORS = (
     SensorEntityDescription(
         key="starttime",
-        translation_key="starttime",
+        name="Start time",
         device_class = SensorDeviceClass.TIMESTAMP,
     ),
     SensorEntityDescription(
         key="endtime",
-        translation_key="endtime",
+        name="Finish time",
         device_class = SensorDeviceClass.TIMESTAMP,
     ),
     SensorEntityDescription(
         key="hometeam",
-        translation_key="hometeam",
+        name="Home team",
     ),
     SensorEntityDescription(
         key="awayteam",
-        translation_key="awayteam",
+        name="Away team",
     ),
     SensorEntityDescription(
         key="location",
-        translation_key="location",
+        name="Location",
         icon="mdi:soccer-field",
     ),
     SensorEntityDescription(
         key="series",
-        translation_key="series",
+        name="Series",
         icon="mdi:table-row",
     ),
     SensorEntityDescription(
         key="referee",
-        translation_key="referee",
+        name="Referee",
         icon="mdi:whistle",
     ),
     SensorEntityDescription(
         key="matchid",
-        translation_key="matchid",
+        name="Match ID",
         icon="mdi:soccer",
     ),
 )
